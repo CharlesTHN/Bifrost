@@ -62,12 +62,8 @@ func defaultConnectorParamConfig() *ConnectorParamConfig {
 }
 
 func createTLSConfig(certFile, keyFile, caFile string, verify bool, serverName string) (tlsConfig *tls.Config, err error) {
-	if certFile == "" || keyFile == "" || caFile == "" {
-		return nil, fmt.Errorf("cert not found")
-	}
-	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
-	if err != nil {
-		return tlsConfig, err
+	if caFile == "" {
+		return nil, fmt.Errorf("ca cert not found")
 	}
 	caCert, err := ioutil.ReadFile(caFile)
 	if err != nil {
@@ -80,10 +76,16 @@ func createTLSConfig(certFile, keyFile, caFile string, verify bool, serverName s
 		return
 	}
 	tlsConfig = &tls.Config{
-		Certificates:       []tls.Certificate{cert},
 		RootCAs:            rootsCAs,
 		InsecureSkipVerify: verify,
 		ServerName:         serverName,
+	}
+	if certFile != "" || keyFile != "" {
+		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+		if err != nil {
+			return tlsConfig, err
+		}
+		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
 	return
 }

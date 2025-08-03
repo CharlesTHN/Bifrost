@@ -457,6 +457,7 @@ func (db *db) Start() error {
 		db.ConnStatus = STARTING
 		go db.inputDriverObj.Start(db.inputStatusChan)
 		go db.monitorDump()
+		go db.CronCalcMinPosition()
 		break
 	case STOPPED:
 		db.ConnStatus = RUNNING
@@ -467,7 +468,6 @@ func (db *db) Start() error {
 	default:
 		return nil
 	}
-	go db.CronCalcMinPosition()
 	return nil
 }
 
@@ -504,7 +504,6 @@ func (db *db) InitInputDriver() {
 }
 
 func (db *db) Stop() bool {
-	db.statusCtx.cancelFun()
 	db.Lock()
 	defer db.Unlock()
 	if db.ConnStatus == RUNNING {
@@ -515,6 +514,9 @@ func (db *db) Stop() bool {
 }
 
 func (db *db) Close() bool {
+	if db.statusCtx.cancelFun != nil {
+		db.statusCtx.cancelFun()
+	}
 	db.Lock()
 	defer db.Unlock()
 	if db.ConnStatus != STOPPED && db.ConnStatus != STARTING {
@@ -530,6 +532,18 @@ func (db *db) monitorDump() (r bool) {
 	timer := time.NewTimer(3 * time.Second)
 	defer timer.Stop()
 	var i uint8 = 0
+	var checkExit = func() bool {
+		if db.statusCtx.ctx == nil {
+			return true
+		}
+		select {
+		case <-db.statusCtx.ctx.Done():
+			db.ConnStatus = CLOSED
+			return true
+		default:
+			return false
+		}
+	}
 	for {
 		select {
 		case inputStatusInfo := <-db.inputStatusChan:
@@ -562,6 +576,9 @@ func (db *db) monitorDump() (r bool) {
 					DbName: db.Name,
 					Body:   " closed",
 				})
+				if checkExit() {
+					return
+				}
 			default:
 				db.ConnStatus = DEFAULT
 			}
@@ -587,6 +604,9 @@ func (db *db) monitorDump() (r bool) {
 		case <-timer.C:
 			timer.Reset(3 * time.Second)
 			db.saveBinlog()
+			if checkExit() {
+				return
+			}
 			break
 		}
 	}

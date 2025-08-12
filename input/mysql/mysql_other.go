@@ -121,7 +121,7 @@ func (c *MysqlInput) GetClickHouseSchemaTableFieldList(schema string, table stri
 		defer db.Close()
 	}
 	FieldList = make([]inputDriver.TableFieldInfo, 0)
-	sql := "SELECT `COLUMN_NAME`,`COLUMN_DEFAULT`,`IS_NULLABLE`,`COLUMN_TYPE`,`COLUMN_COMMENT`,`DATA_TYPE`,`NUMERIC_PRECISION`,`NUMERIC_SCALE` FROM `information_schema`.`columns` WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? "
+	sql := "SELECT `COLUMN_NAME`,`COLUMN_DEFAULT`,`IS_NULLABLE`,`COLUMN_TYPE`,`COLUMN_COMMENT`,`DATA_TYPE`,`NUMERIC_PRECISION`,`NUMERIC_SCALE` FROM `information_schema`.`columns` WHERE table_schema = ? AND table_name = ? "
 	p := make([]driver.Value, 0)
 	p = append(p, schema)
 	p = append(p, table)

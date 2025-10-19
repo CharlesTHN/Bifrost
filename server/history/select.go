@@ -4,7 +4,6 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
-	"github.com/brokercap/Bifrost/config"
 	pluginDriver "github.com/brokercap/Bifrost/plugin/driver"
 	"github.com/brokercap/Bifrost/server"
 	"github.com/brokercap/Bifrost/server/count"
@@ -216,33 +215,21 @@ func (This *History) sendToServerResult(pluginData *pluginDriver.PluginDataType)
 			return
 		}
 		ToServerInfo.QueueMsgCount++
-		if ToServerInfo.ToServerChan == nil {
-			ToServerInfo.ToServerChan = &server.ToServerChan{
-				To: make(chan *pluginDriver.PluginDataType, config.ToServerQueueSize),
-			}
-		}
 		// 保证只要还有数据写入，就有最小的消费进程数量还在消费
-		toServer.Lock()
-		if toServer.threadCount < This.Property.SyncThreadNum {
+		if int(toServer.ToServerInfo.ThreadCount) < This.Property.SyncThreadNum {
 			// 为什么这里放一个协程去异步等待协程结束 ,而不是最开始初始化的时候,就启动呢
 			// 假如最开始初始化就启动了一个协程,但是假如拉取数据的协程,压根就没拉到数据,那等待同步协程结束 的 协程 不就是一直阻塞在那吗?
-			for i := 0; i < This.Property.SyncThreadNum-toServer.threadCount; i++ {
+			for i := 0; i < This.Property.SyncThreadNum-int(ToServerInfo.ThreadCount); i++ {
 				//每启用一个同步协程,就 +1 每个协程结束,就相对 -1
 				This.SyncWaitToServerOver(1)
-				toServer.threadCount++
 				go func() {
 					//这里要用 defer 是因为 ConsumeToServer 里 直接用了  runtime.Goexit()
-					defer func() {
-						toServer.Lock()
-						toServer.threadCount--
-						toServer.Unlock()
-						This.ToServerTheadGroup.Done()
-					}()
+					defer This.ToServerTheadGroup.Done()
+					ToServerInfo.ThreadCount++
 					ToServerInfo.ConsumeToServer(server.GetDBObj(This.DbName), This.SchemaName, This.TableName)
 				}()
 			}
 		}
-		toServer.Unlock()
 		ToServerInfo.Unlock()
 		ToServerInfo.ToServerChan.To <- pluginData
 	}

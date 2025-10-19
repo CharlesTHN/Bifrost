@@ -100,6 +100,9 @@ func (This *consume_channel_obj) sendToServerResult(ToServerInfo *ToServer, plug
 		ToServerInfo.ToServerChan = &ToServerChan{
 			To: make(chan *pluginDriver.PluginDataType, config.ToServerQueueSize),
 		}
+	}
+	if ToServerInfo.ThreadCount <= 0 {
+		ToServerInfo.ThreadCount++
 		go ToServerInfo.consume_to_server(This.db, pluginData.SchemaName, pluginData.TableName)
 	}
 	ToServerInfo.Unlock()

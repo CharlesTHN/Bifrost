@@ -131,6 +131,9 @@ func (c *Channel) channelConsume() {
 			log.Println("channelConsume err:", err, string(debug.Stack()))
 			c.Lock()
 			c.CurrentThreadNum--
+			if c.CurrentThreadNum == 0 {
+				c.Status = CLOSED
+			}
 			c.Unlock()
 		}
 	}()

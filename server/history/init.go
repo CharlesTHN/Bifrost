@@ -218,7 +218,6 @@ type ThreadStatus struct {
 
 type toServer struct {
 	sync.RWMutex
-	threadCount  int
 	ToServerInfo *server.ToServer
 }
 

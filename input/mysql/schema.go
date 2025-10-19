@@ -6,6 +6,7 @@ import (
 	"github.com/brokercap/Bifrost/Bristol/mysql"
 	inputDriver "github.com/brokercap/Bifrost/input/driver"
 	"log"
+	"runtime/debug"
 	"strings"
 	"time"
 )
@@ -18,7 +19,7 @@ func (c *MysqlInput) GetConn() mysql.MysqlConnection {
 func (c *MysqlInput) GetSchemaList() ([]string, error) {
 	defer func() {
 		if err := recover(); err != nil {
-
+			log.Printf("MysqlInput GetSchemaList recover err:%s  stack: %s \n", err, string(debug.Stack()))
 		}
 	}()
 	db := c.GetConn()
@@ -26,7 +27,7 @@ func (c *MysqlInput) GetSchemaList() ([]string, error) {
 		defer db.Close()
 	}
 	databaseList := make([]string, 0)
-	sql := "select `SCHEMA_NAME` from `information_schema`.`SCHEMATA`"
+	sql := "select `SCHEMA_NAME` from `information_schema`.`schemata`"
 	p := make([]driver.Value, 0)
 	rows, err := db.Query(sql, p)
 	defer rows.Close()
@@ -59,7 +60,7 @@ func (c *MysqlInput) GetSchemaTableList(schema string) (tableList []inputDriver.
 		defer db.Close()
 	}
 	tableList = make([]inputDriver.TableList, 0)
-	sql := "SELECT TABLE_NAME,TABLE_TYPE FROM `information_schema`.`TABLES` WHERE TABLE_SCHEMA = ?"
+	sql := "SELECT TABLE_NAME,TABLE_TYPE FROM `information_schema`.`tables` WHERE table_schema = ?"
 	p := make([]driver.Value, 0)
 	p = append(p, schema)
 	rows, err := db.Query(sql, p)

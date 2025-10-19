@@ -16,4 +16,4 @@ limitations under the License.
 
 package config
 
-const VERSION = "v2.4.4-beta"
+const VERSION = "v2.4.5-beta"

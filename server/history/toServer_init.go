@@ -1,6 +1,8 @@
 package history
 
 import (
+	"github.com/brokercap/Bifrost/config"
+	pluginDriver "github.com/brokercap/Bifrost/plugin/driver"
 	"github.com/brokercap/Bifrost/server"
 	"time"
 )
@@ -17,19 +19,21 @@ func (This *History) InitToServer() {
 		for _, ID := range This.ToServerIDList {
 			if ID == toServerInfo.ToServerID {
 				toServerInfoNew := &server.ToServer{
-					Key:                &Key,
-					ToServerID:         0,
-					PluginName:         toServerInfo.PluginName,
-					MustBeSuccess:      toServerInfo.MustBeSuccess,
-					FilterQuery:        toServerInfo.FilterQuery,
-					FilterUpdate:       toServerInfo.FilterUpdate,
-					FieldList:          toServerInfo.FieldList,
-					ToServerKey:        toServerInfo.ToServerKey,
-					BinlogFileNum:      toServerInfo.BinlogFileNum,
-					BinlogPosition:     toServerInfo.BinlogPosition,
-					PluginParam:        toServerInfo.PluginParam,
-					Status:             "",
-					ToServerChan:       nil,
+					Key:            &Key,
+					ToServerID:     0,
+					PluginName:     toServerInfo.PluginName,
+					MustBeSuccess:  toServerInfo.MustBeSuccess,
+					FilterQuery:    toServerInfo.FilterQuery,
+					FilterUpdate:   toServerInfo.FilterUpdate,
+					FieldList:      toServerInfo.FieldList,
+					ToServerKey:    toServerInfo.ToServerKey,
+					BinlogFileNum:  toServerInfo.BinlogFileNum,
+					BinlogPosition: toServerInfo.BinlogPosition,
+					PluginParam:    toServerInfo.PluginParam,
+					Status:         "",
+					ToServerChan: &server.ToServerChan{
+						To: make(chan *pluginDriver.PluginDataType, config.ToServerQueueSize),
+					},
 					Error:              "",
 					ErrorWaitDeal:      0,
 					ErrorWaitData:      nil,
@@ -40,7 +44,7 @@ func (This *History) InitToServer() {
 					FileQueueStatus:    false, // 是否启动文件队列
 					Notes:              "history",
 				}
-				This.ToServerList = append(This.ToServerList, &toServer{threadCount: 0, ToServerInfo: toServerInfoNew})
+				This.ToServerList = append(This.ToServerList, &toServer{ToServerInfo: toServerInfoNew})
 				break
 			}
 		}

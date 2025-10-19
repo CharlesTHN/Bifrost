@@ -53,7 +53,6 @@ func (This *ToServer) consume_to_server(db *db, SchemaName string, TableName str
 	if This.cosumerPluginParamArr == nil {
 		This.cosumerPluginParamArr = make([]interface{}, 0)
 	}
-	This.ThreadCount++
 	This.cosumerPluginParamArr = append(This.cosumerPluginParamArr, nil)
 	MyConsumerId = len(This.cosumerPluginParamArr) - 1
 	//强制给参数 加入  BifrostMustBeSuccess 保留参数字段
@@ -463,7 +462,6 @@ func (This *ToServer) consume_to_server(db *db, SchemaName string, TableName str
 				if This.QueueMsgCount == 0 {
 					// 在全量任务的时候，有可能是起多个消费者,所以这里要判断一下，是不是只剩下一个消费者，只有一个消费者的时候的时候,再将 chan 关闭
 					if This.ThreadCount == 1 {
-						This.ToServerChan = nil
 						This.Status = ""
 					}
 					//这里要执行一次fileAck ，是为了最终数据一致，将已经从文件中加载出来的数据 ack掉

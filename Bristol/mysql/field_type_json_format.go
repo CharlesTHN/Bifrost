@@ -49,7 +49,8 @@ func get_field_json_data0(buf *bytes.Buffer, t uint8, length int64) (interface{}
 		return read_binary_json_object(buf, length-1, large)
 	case JSONB_TYPE_SMALL_ARRAY, JSONB_TYPE_LARGE_ARRAY:
 		var large bool
-		if t == JSONB_TYPE_LARGE_OBJECT {
+		// fix: should check LARGE_ARRAY (not LARGE_OBJECT)
+		if t == JSONB_TYPE_LARGE_ARRAY {
 			large = true
 		}
 		return read_binary_json_array(buf, length-1, large)
@@ -196,14 +197,18 @@ func read_binary_json_object(buf *bytes.Buffer, length int64, large bool) (inter
 	}
 	key_offset_lengths := make([][]int64, elements)
 	if large {
-		var x uint32
-		var y uint16
 		for i := int64(0); i < elements; i++ {
-			binary.Read(buf, binary.LittleEndian, &x)
-			binary.Read(buf, binary.LittleEndian, &y)
-			key_offset_lengths[0] = make([]int64, 2)
-			key_offset_lengths[0][0] = int64(x)
-			key_offset_lengths[0][1] = int64(y)
+			var x uint32
+			var y uint16
+			if err := binary.Read(buf, binary.LittleEndian, &x); err != nil {
+				return nil, err
+			}
+			if err := binary.Read(buf, binary.LittleEndian, &y); err != nil {
+				return nil, err
+			}
+			key_offset_lengths[i] = make([]int64, 2)
+			key_offset_lengths[i][0] = int64(x)
+			key_offset_lengths[i][1] = int64(y)
 		}
 	} else {
 		var x uint16

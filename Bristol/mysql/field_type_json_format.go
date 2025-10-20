@@ -275,7 +275,12 @@ func read_offset_or_inline(buf *bytes.Buffer, large bool) (data json_object_inli
 	}
 	data.z = nil
 	if large {
-		binary.Read(buf, binary.LittleEndian, data.y)
+		var y int64
+		err := binary.Read(buf, binary.LittleEndian, &y)
+		if err != nil {
+			return json_object_inlined_lengths_struct{}
+		}
+		data.y = &y
 	} else {
 		var y uint16
 		binary.Read(buf, binary.LittleEndian, &y)

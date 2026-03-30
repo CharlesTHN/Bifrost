@@ -1,0 +1,42 @@
+Bristol/mysql/field_type_json_format.go
+  c4b084416cafb163 28-30,40-42,130-135,140-142,165-168,193,204-206,229-232,294-298
+  53a54128b22f0264 322-333
+Bristol/mysql/event_row.go
+  c4b084416cafb163 588-590
+Bristol/mysql/field_type_json_format_test.go
+  c4b084416cafb163 297-311
+  53a54128b22f0264 197-296
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.18",
+  "base_commit_sha": "579583fd7e4f8fb38c631752fa8f332353cc56d0",
+  "prompts": {
+    "53a54128b22f0264": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "1f518dde-c5ec-40b6-8bc9-4e947307b2c0",
+        "model": "default"
+      },
+      "human_author": "tianhaonan <tianhaonan@lightchain.ltd>",
+      "messages": [],
+      "total_additions": 114,
+      "total_deletions": 3,
+      "accepted_lines": 112,
+      "overriden_lines": 0
+    },
+    "c4b084416cafb163": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "d340095b-a2ad-4da8-9bed-475fcc13a22e",
+        "model": "default"
+      },
+      "human_author": "tianhaonan <tianhaonan@lightchain.ltd>",
+      "messages": [],
+      "total_additions": 52,
+      "total_deletions": 5,
+      "accepted_lines": 51,
+      "overriden_lines": 0
+    }
+  }
+}

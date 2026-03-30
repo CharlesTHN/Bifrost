@@ -25,6 +25,9 @@ const (
 	JSONB_LITERAL_NULL  = 0x0
 	JSONB_LITERAL_TRUE  = 0x1
 	JSONB_LITERAL_FALSE = 0x2
+
+	// maxJSONElements caps object/array cardinality to avoid OOM on corrupt binlog or length mismatch.
+	maxJSONElements = 10_000_000
 )
 
 type json_object_inlined_lengths_struct struct {
@@ -34,6 +37,9 @@ type json_object_inlined_lengths_struct struct {
 }
 
 func get_field_json_data(data []byte, length int64) (interface{}, error) {
+	if int64(len(data)) < length {
+		length = int64(len(data))
+	}
 	buf := bytes.NewBuffer(data)
 	t, _ := buf.ReadByte()
 	return get_field_json_data0(buf, t, length)
@@ -121,10 +127,19 @@ func read_variable_length_string(buf *bytes.Buffer) string {
 			break
 		}
 	}
+	if length > buf.Len() {
+		length = buf.Len()
+	}
+	if length < 0 {
+		length = 0
+	}
 	return string(buf.Next(length))
 }
 
 func read_binary_json_array(buf *bytes.Buffer, length int64, large bool) (interface{}, error) {
+	if rem := int64(buf.Len()); length > rem {
+		length = rem
+	}
 	var elements int64
 	var size int64
 
@@ -144,6 +159,18 @@ func read_binary_json_array(buf *bytes.Buffer, length int64, large bool) (interf
 
 	if size > length {
 		err := fmt.Errorf("Json length: %d is larger than packet length %d", size, length)
+		return nil, err
+	}
+
+	if elements > maxJSONElements {
+		return nil, fmt.Errorf("Json array elements count %d exceeds max %d", elements, maxJSONElements)
+	}
+
+	// Validate elements count to prevent OOM from corrupted data
+	// Each element requires at least 1 byte for type marker
+	minNeededPerElement := int64(1)
+	if elements > length/minNeededPerElement {
+		err := fmt.Errorf("Json array elements count %d is impossible for data length %d", elements, length)
 		return nil, err
 	}
 
@@ -163,7 +190,7 @@ func read_binary_json_array(buf *bytes.Buffer, length int64, large bool) (interf
 			}
 		} else {
 			var err error
-			val, err = get_field_json_data0(buf, v.x, length)
+			val, err = get_field_json_data0(buf, v.x, int64(buf.Len()))
 			if err != nil {
 				return nil, err
 			}
@@ -174,6 +201,9 @@ func read_binary_json_array(buf *bytes.Buffer, length int64, large bool) (interf
 }
 
 func read_binary_json_object(buf *bytes.Buffer, length int64, large bool) (interface{}, error) {
+	if rem := int64(buf.Len()); length > rem {
+		length = rem
+	}
 	var elements int64
 	var size int64
 
@@ -195,6 +225,23 @@ func read_binary_json_object(buf *bytes.Buffer, length int64, large bool) (inter
 		err := fmt.Errorf("Json length: %d is larger than packet length %d", size, length)
 		return nil, err
 	}
+
+	if elements > maxJSONElements {
+		return nil, fmt.Errorf("Json object elements count %d exceeds max %d", elements, maxJSONElements)
+	}
+
+	// Validate elements count to prevent OOM from corrupted data
+	// Each element requires at least 4 bytes (2 bytes offset + 2 bytes key length) in small format
+	// or 6 bytes (4 bytes offset + 2 bytes key length) in large format
+	minNeededPerElement := int64(4)
+	if large {
+		minNeededPerElement = 6
+	}
+	if elements > length/minNeededPerElement {
+		err := fmt.Errorf("Json object elements count %d is impossible for data length %d", elements, length)
+		return nil, err
+	}
+
 	key_offset_lengths := make([][]int64, elements)
 	if large {
 		for i := int64(0); i < elements; i++ {
@@ -244,7 +291,11 @@ func read_binary_json_object(buf *bytes.Buffer, length int64, large bool) (inter
 			}
 		} else {
 			x := value_type_inlined_lengths[i].x
-			val, _ = get_field_json_data0(buf, x, length)
+			var err error
+			val, err = get_field_json_data0(buf, x, int64(buf.Len()))
+			if err != nil {
+				return nil, err
+			}
 		}
 		out[keys[i]] = val
 	}
@@ -268,7 +319,18 @@ func read_offset_or_inline(buf *bytes.Buffer, large bool) (data json_object_inli
 		if z == nil {
 			data.z = nil
 		} else {
-			z0 := z.(int64)
+			// read_binary_json_type_inlined returns int32 / uint32, not int64
+			var z0 int64
+			switch v := z.(type) {
+			case int32:
+				z0 = int64(v)
+			case uint32:
+				z0 = int64(v)
+			case int64:
+				z0 = v
+			default:
+				panic(fmt.Sprintf("Json inlined type %d: unexpected Go type %T", data.x, z))
+			}
 			data.z = &z0
 		}
 		return

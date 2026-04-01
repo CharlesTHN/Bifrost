@@ -42,19 +42,20 @@ func createMockLargeObjectData() []byte {
 
 	// 写入元素数量 (uint32) 和大小 (uint32)
 	elements := uint32(2)
-	size := uint32(26) // 修正大小: 8(header) + 12(key offsets) + 6(value types) + 7(key strings)
+	// size = bytes of object body after root type byte (MySQL json_binary): header+meta+values+keys
+	size := uint32(35)
 	binary.Write(buf, binary.LittleEndian, elements)
 	binary.Write(buf, binary.LittleEndian, size)
 
 	// 写入 key 偏移和长度信息 (large format)
-	// 第一个 key
-	var keyOffset1 uint32 = 0
+	// key-offset 为相对整列二进制**从首字节起**的绝对偏移（与 MySQL binlog 一致）
+	// 首字节 type(1) + header(8) + key-meta(12) + value-meta(8) = 29 起为 "name"
+	var keyOffset1 uint32 = 29
 	var keyLen1 uint16 = 4
 	binary.Write(buf, binary.LittleEndian, keyOffset1)
 	binary.Write(buf, binary.LittleEndian, keyLen1)
 
-	// 第二个 key
-	var keyOffset2 uint32 = 4
+	var keyOffset2 uint32 = 33
 	var keyLen2 uint16 = 3
 	binary.Write(buf, binary.LittleEndian, keyOffset2)
 	binary.Write(buf, binary.LittleEndian, keyLen2)
@@ -267,11 +268,11 @@ func createMockLargeObjectInlinedUint32() []byte {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteByte(JSONB_TYPE_LARGE_OBJECT)
 	elements := uint32(1)
-	// 8 + 6(key meta) + 5(value) + 1(key "k") = 20
+	// 1(type)+8(header)+6(key meta)+5(value UINT32 large inline)+1("k")=21; body size after type=20
 	size := uint32(20)
 	binary.Write(buf, binary.LittleEndian, elements)
 	binary.Write(buf, binary.LittleEndian, size)
-	var keyOff uint32 = 0
+	var keyOff uint32 = 20
 	var keyLen uint16 = 1
 	binary.Write(buf, binary.LittleEndian, keyOff)
 	binary.Write(buf, binary.LittleEndian, keyLen)
@@ -307,5 +308,43 @@ func TestJSONDeclaredLengthLargerThanPayloadNoOOM(t *testing.T) {
 	_, err := get_field_json_data(data, 1<<30)
 	if err == nil {
 		t.Fatal("expected parse error for corrupt/truncated JSON payload")
+	}
+}
+
+// MySQL 8 PARTIAL_JSON row image: LE32 total length then (op, path_len, path, [data_len, data])*.
+func TestParsePartialJSONBinlog(t *testing.T) {
+	body := bytes.NewBuffer(nil)
+	body.WriteByte(2) // remove
+	body.WriteByte(7) // path len < 251
+	body.WriteString(`$.field`)
+	total := uint32(body.Len())
+	all := bytes.NewBuffer(nil)
+	if err := binary.Write(all, binary.LittleEndian, total); err != nil {
+		t.Fatal(err)
+	}
+	all.Write(body.Bytes())
+	if all.Len() != 4+int(total) {
+		t.Fatalf("test layout: len=%d want %d", all.Len(), 4+int(total))
+	}
+	v, err := parsePartialJSONBinlog(all.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, ok := v.(map[string]interface{})
+	if !ok || m["_binlog_partial_json"] != true {
+		t.Fatalf("expected partial wrapper map, got %T %+v", v, v)
+	}
+	diffs := m["diffs"].([]map[string]interface{})
+	if len(diffs) != 1 || diffs[0]["op_name"] != "remove" || diffs[0]["path"] != `$.field` {
+		t.Fatalf("unexpected diffs: %+v", diffs)
+	}
+}
+
+func TestParsePartialJSONBinlogLengthMismatch(t *testing.T) {
+	// total claims 10 bytes follow but buffer is shorter — must not accept as partial
+	b := []byte{10, 0, 0, 0, 1, 2, 3}
+	_, err := parsePartialJSONBinlog(b)
+	if err == nil {
+		t.Fatal("expected error for length mismatch")
 	}
 }

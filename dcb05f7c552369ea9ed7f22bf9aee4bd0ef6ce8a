@@ -1,0 +1,46 @@
+Bristol/mysql/field_type_json_format_test.go
+  12c5fcb6e45bd55f 314
+  c4b084416cafb163 45-46,51-53,58,271,275,313,315-350
+server/to_server_consume.go
+  12c5fcb6e45bd55f 583
+Bristol/mysql/field_type_json_format.go
+  c4b084416cafb163 6-7,9,46-48,50-68,71,78,85-87,135,137-140,151-224,236-268,275-304,334,386,398,474-482,495,544-545,550-551,608-625
+  12c5fcb6e45bd55f 136,141-150,225-235,269-274,381,383-385,388,490,492-494,497,511,535-536,627-628
+config/version.go
+  c4b084416cafb163 19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.18",
+  "base_commit_sha": "dcb05f7c552369ea9ed7f22bf9aee4bd0ef6ce8a",
+  "prompts": {
+    "12c5fcb6e45bd55f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a1ad3e90-08d1-427f-bc80-e684f6b68c73",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "tianhaonan <tianhaonan@lightchain.ltd>",
+      "messages": [],
+      "total_additions": 51,
+      "total_deletions": 56,
+      "accepted_lines": 48,
+      "overriden_lines": 0,
+      "messages_url": "https://usegitai.com/cas/902a0122af79546debdc9058502147b92b39e95db7e5d938382feacbd60e77e7"
+    },
+    "c4b084416cafb163": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "d340095b-a2ad-4da8-9bed-475fcc13a22e",
+        "model": "default"
+      },
+      "human_author": "tianhaonan <tianhaonan@lightchain.ltd>",
+      "messages": [],
+      "total_additions": 326,
+      "total_deletions": 55,
+      "accepted_lines": 259,
+      "overriden_lines": 0,
+      "messages_url": "https://usegitai.com/cas/00e8169a1a80c472583a1b2cd1c1aca9ec97da6f21eda4634cbd614bd25ec0f7"
+    }
+  }
+}

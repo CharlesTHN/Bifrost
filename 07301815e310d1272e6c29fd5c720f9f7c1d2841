@@ -1,0 +1,26 @@
+Bristol/mysql/field_type_json_format_test.go
+  df87021b5fca1a3b 351-381
+Bristol/mysql/field_type_json_format.go
+  df87021b5fca1a3b 49-63,77,84,261
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.18",
+  "base_commit_sha": "07301815e310d1272e6c29fd5c720f9f7c1d2841",
+  "prompts": {
+    "df87021b5fca1a3b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a83c8a95-3a82-40dd-8efa-3be2ff4740e0",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "tianhaonan <tianhaonan@lightchain.ltd>",
+      "messages": [],
+      "total_additions": 49,
+      "total_deletions": 5,
+      "accepted_lines": 49,
+      "overriden_lines": 0,
+      "messages_url": "https://usegitai.com/cas/68eb65fd592539f18c1af952bb7691b82f3a1f1b832dd6162615b5f0fe4f1117"
+    }
+  }
+}

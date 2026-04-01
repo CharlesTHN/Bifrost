@@ -46,6 +46,21 @@ func get_field_json_data(data []byte, length int64) (interface{}, error) {
 	if len(data) == 0 {
 		return nil, nil
 	}
+
+	// Optimization: if first byte is not a valid JSONB type (0x00-0x0F),
+	// it might be Partial JSON or text JSON.
+	if data[0] > 0x0F {
+		if v2, errP := parsePartialJSONBinlog(data); errP == nil {
+			return v2, nil
+		}
+		if data[0] == '{' || data[0] == '[' {
+			var j interface{}
+			if errJ := json.Unmarshal(data, &j); errJ == nil {
+				return j, nil
+			}
+		}
+	}
+
 	buf := bytes.NewBuffer(data)
 	t, err := buf.ReadByte()
 	if err != nil {
@@ -59,12 +74,14 @@ func get_field_json_data(data []byte, length int64) (interface{}, error) {
 	if v2, errP := parsePartialJSONBinlog(data); errP == nil {
 		return v2, nil
 	}
+
 	if data[0] == '{' || data[0] == '[' {
 		var j interface{}
 		if errJ := json.Unmarshal(data, &j); errJ == nil {
 			return j, nil
 		}
 	}
+
 	return nil, errBin
 }
 
@@ -241,11 +258,7 @@ func parsePartialJSONBinlog(data []byte) (interface{}, error) {
 	if total < 0 || 4+total > len(data) {
 		return nil, fmt.Errorf("partial json length out of range")
 	}
-	// Require exact fit so we do not mis-parse full binary JSON whose first 4 bytes look like a length.
-	if 4+total != len(data) {
-		return nil, fmt.Errorf("partial json length mismatch")
-	}
-	payload := data[4:]
+	payload := data[4 : 4+total]
 	buf := bytes.NewBuffer(payload)
 	opNames := []string{"replace", "insert", "remove"}
 	var diffs []map[string]interface{}

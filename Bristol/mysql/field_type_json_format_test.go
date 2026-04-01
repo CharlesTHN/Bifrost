@@ -348,3 +348,34 @@ func TestParsePartialJSONBinlogLengthMismatch(t *testing.T) {
 		t.Fatal("expected error for length mismatch")
 	}
 }
+
+func TestParsePartialJSONBinlogPadded(t *testing.T) {
+	// total claims 1 byte follows, but we provide 10 bytes. should succeed and ignore padding.
+	body := bytes.NewBuffer(nil)
+	body.WriteByte(2) // remove op
+	path := "$.a"
+	body.WriteByte(byte(len(path)))
+	body.WriteString(path)
+
+	total := uint32(body.Len())
+	all := bytes.NewBuffer(nil)
+	binary.Write(all, binary.LittleEndian, total)
+	all.Write(body.Bytes())
+
+	// Add 10 bytes of padding
+	all.Write(make([]byte, 10))
+
+	v, err := parsePartialJSONBinlog(all.Bytes())
+	if err != nil {
+		t.Fatalf("failed to parse padded partial json: %v", err)
+	}
+
+	m, ok := v.(map[string]interface{})
+	if !ok || m["_binlog_partial_json"] != true {
+		t.Fatalf("expected partial wrapper map, got %T %+v", v, v)
+	}
+	diffs := m["diffs"].([]map[string]interface{})
+	if len(diffs) != 1 || diffs[0]["path"] != path {
+		t.Fatalf("unexpected diffs: %+v", diffs)
+	}
+}

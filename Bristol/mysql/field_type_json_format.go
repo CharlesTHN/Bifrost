@@ -53,12 +53,6 @@ func get_field_json_data(data []byte, length int64) (interface{}, error) {
 		if v2, errP := parsePartialJSONBinlog(data); errP == nil {
 			return v2, nil
 		}
-		if data[0] == '{' || data[0] == '[' {
-			var j interface{}
-			if errJ := json.Unmarshal(data, &j); errJ == nil {
-				return j, nil
-			}
-		}
 	}
 
 	buf := bytes.NewBuffer(data)
@@ -66,11 +60,12 @@ func get_field_json_data(data []byte, length int64) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	v, errBin := get_field_json_data0(buf, t, int64(buf.Len()), data)
+	v, errBin := get_field_json_data0(buf, t, int64(buf.Len()), data[1:])
 	if errBin == nil {
 		return v, nil
 	}
-	// MySQL 8.0 binlog_row_value_options=PARTIAL_JSON: column is diff blob, not full binary JSON.
+
+	// 记录详细的错误日志以定位根因
 	if v2, errP := parsePartialJSONBinlog(data); errP == nil {
 		return v2, nil
 	}
@@ -83,6 +78,13 @@ func get_field_json_data(data []byte, length int64) (interface{}, error) {
 	}
 
 	return nil, errBin
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func get_field_json_data0(buf *bytes.Buffer, t uint8, length int64, root []byte) (interface{}, error) {
@@ -192,18 +194,18 @@ func readJSONOpaque(buf *bytes.Buffer) (interface{}, error) {
 	}, nil
 }
 
-// parseJSONValueAtOffset parses a nested binary JSON value whose entry points into root (full column bytes; offsets match binlog / MySQL tests).
-func parseJSONValueAtOffset(root []byte, off int64) (interface{}, error) {
-	if off < 0 || int(off) >= len(root) {
+// parseJSONValueAtOffset parses a non-inlined JSON value at the given offset within root.
+// In MySQL 5.7 JSONB format:
+//   - root = m_data of the parent container (bytes after the parent's type byte)
+//   - off = offset relative to root (from value_entry)
+//   - t = the type from value_entry (NOT re-read from data; the value data has no type byte prefix)
+func parseJSONValueAtOffset(root []byte, off int64, t uint8) (interface{}, error) {
+	if off < 0 || int(off) > len(root) {
 		return nil, fmt.Errorf("json value offset %d out of range (len=%d)", off, len(root))
 	}
 	sub := root[off:]
 	buf := bytes.NewBuffer(sub)
-	t, err := buf.ReadByte()
-	if err != nil {
-		return nil, err
-	}
-	return get_field_json_data0(buf, t, int64(buf.Len()), root)
+	return get_field_json_data0(buf, t, int64(len(sub)), sub)
 }
 
 // readMysqlNetFieldLength implements mysys/net_field_length (pack.cc) for binlog partial JSON path/data lengths.
@@ -398,7 +400,7 @@ func read_binary_json_array(buf *bytes.Buffer, length int64, large bool, root []
 				return nil, fmt.Errorf("json array: unexpected offset type %T", v.y)
 			}
 			var err error
-			val, err = parseJSONValueAtOffset(root, *offp)
+			val, err = parseJSONValueAtOffset(root, *offp, v.x)
 			if err != nil {
 				return nil, err
 			}
@@ -507,7 +509,7 @@ func read_binary_json_object(buf *bytes.Buffer, length int64, large bool, root [
 				return nil, fmt.Errorf("json object: unexpected offset type %T", value_type_inlined_lengths[i].y)
 			}
 			var err error
-			val, err = parseJSONValueAtOffset(root, *offp)
+			val, err = parseJSONValueAtOffset(root, *offp, value_type_inlined_lengths[i].x)
 			if err != nil {
 				return nil, err
 			}
@@ -598,12 +600,19 @@ func read_binary_json_type_inlined(buf *bytes.Buffer, z uint8, large bool) (data
 		var value int16
 		binary.Read(buf, binary.LittleEndian, &value)
 		data = value
+		if large {
+			// 在 Large Object 中，内联值始终占用 4 字节，需要跳过剩余 2 字节
+			buf.Next(2)
+		}
 		return
 	}
 	if z == JSONB_TYPE_UINT16 {
 		var value uint16
 		binary.Read(buf, binary.LittleEndian, &value)
 		data = value
+		if large {
+			buf.Next(2)
+		}
 		return
 	}
 	if z == JSONB_TYPE_INT32 {

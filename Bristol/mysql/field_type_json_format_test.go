@@ -7,25 +7,27 @@ import (
 )
 
 // 创建一个模拟的 JSONB_TYPE_LARGE_ARRAY 数据
+// MySQL 5.7 JSONB Large Array 格式：Large 模式下每个 value_entry 占 1(type)+4(inline/offset)=5 字节
 func createMockLargeArrayData() []byte {
 	buf := bytes.NewBuffer(nil)
 
-	// 写入类型标识 JSONB_TYPE_LARGE_ARRAY
+	// type byte
 	buf.WriteByte(JSONB_TYPE_LARGE_ARRAY)
 
-	// 写入元素数量 (uint32) 和大小 (uint32)
+	// header: elements(uint32) + size(uint32) = 8 bytes
 	elements := uint32(2)
-	size := uint32(15) // 修正大小: 8(header) + 3(first element) + 4(second element)
+	// 8(header) + 5(value_entry[0]: type+int16+2pad) + 5(value_entry[1]: type+uint32) = 18
+	size := uint32(18)
 	binary.Write(buf, binary.LittleEndian, elements)
 	binary.Write(buf, binary.LittleEndian, size)
 
-	// 写入元素类型和偏移信息
-	// 第一个元素: INT16 类型，内联
+	// value_entry[0]: INT16, inlined，Large 模式下 slot=4 字节，实际 int16=2 字节+2字节 padding
 	buf.WriteByte(JSONB_TYPE_INT16)
 	var val1 int16 = 42
 	binary.Write(buf, binary.LittleEndian, val1)
+	binary.Write(buf, binary.LittleEndian, uint16(0)) // 2 字节 padding
 
-	// 第二个元素: LITERAL 类型，内联
+	// value_entry[1]: LITERAL, inlined，Large 模式下读 uint32
 	buf.WriteByte(JSONB_TYPE_LITERAL)
 	var literal uint32 = JSONB_LITERAL_TRUE
 	binary.Write(buf, binary.LittleEndian, literal)
@@ -34,46 +36,54 @@ func createMockLargeArrayData() []byte {
 }
 
 // 创建一个模拟的 JSONB_TYPE_LARGE_OBJECT 数据
+// MySQL 5.7 JSONB 偏移量相对于 type 字节之后的 m_data（即 root=data[1:]）
 func createMockLargeObjectData() []byte {
 	buf := bytes.NewBuffer(nil)
 
-	// 写入类型标识 JSONB_TYPE_LARGE_OBJECT
+	// type byte
 	buf.WriteByte(JSONB_TYPE_LARGE_OBJECT)
 
-	// 写入元素数量 (uint32) 和大小 (uint32)
+	// header: elements(uint32) + size(uint32) = 8 bytes
 	elements := uint32(2)
-	// size = bytes of object body after root type byte (MySQL json_binary): header+meta+values+keys
-	size := uint32(35)
+	// 布局（相对 m_data 即 data[1:] 起算）：
+	//   [0..7]   header (8 bytes)
+	//   [8..13]  key_entry[0]: offset(uint32)+len(uint16) = 6 bytes
+	//   [14..19] key_entry[1]: offset(uint32)+len(uint16) = 6 bytes
+	//   [20..24] value_entry[0]: type(1)+int16(2)+pad(2) = 5 bytes (INT16 inlined, large)
+	//   [25..29] value_entry[1]: type(1)+uint32(4) = 5 bytes (LITERAL inlined, large)
+	//   [30..33] "name" (4 bytes)  ← key_entry[0].offset = 30
+	//   [34..36] "age"  (3 bytes)  ← key_entry[1].offset = 34
+	// total m_data bytes = 37; size field = 37
+	size := uint32(37)
 	binary.Write(buf, binary.LittleEndian, elements)
 	binary.Write(buf, binary.LittleEndian, size)
 
-	// 写入 key 偏移和长度信息 (large format)
-	// key-offset 为相对整列二进制**从首字节起**的绝对偏移（与 MySQL binlog 一致）
-	// 首字节 type(1) + header(8) + key-meta(12) + value-meta(8) = 29 起为 "name"
-	var keyOffset1 uint32 = 29
+	// key_entry[0]: offset=30, length=4
+	var keyOffset1 uint32 = 30
 	var keyLen1 uint16 = 4
 	binary.Write(buf, binary.LittleEndian, keyOffset1)
 	binary.Write(buf, binary.LittleEndian, keyLen1)
 
-	var keyOffset2 uint32 = 33
+	// key_entry[1]: offset=34, length=3
+	var keyOffset2 uint32 = 34
 	var keyLen2 uint16 = 3
 	binary.Write(buf, binary.LittleEndian, keyOffset2)
 	binary.Write(buf, binary.LittleEndian, keyLen2)
 
-	// 写入值类型和偏移信息
-	// 第一个值: INT16 类型，内联
+	// value_entry[0]: INT16=100, inlined；Large 模式 slot=4 字节
 	buf.WriteByte(JSONB_TYPE_INT16)
 	var val1 int16 = 100
 	binary.Write(buf, binary.LittleEndian, val1)
+	binary.Write(buf, binary.LittleEndian, uint16(0)) // 2 字节 padding
 
-	// 第二个值: LITERAL 类型，内联
+	// value_entry[1]: LITERAL=false, inlined；Large 模式读 uint32
 	buf.WriteByte(JSONB_TYPE_LITERAL)
 	var literal uint32 = JSONB_LITERAL_FALSE
 	binary.Write(buf, binary.LittleEndian, literal)
 
-	// 写入 key 字符串
-	buf.WriteString("name") // 4 bytes
-	buf.WriteString("age")  // 3 bytes
+	// key strings
+	buf.WriteString("name") // 4 bytes，从 m_data[30] 开始
+	buf.WriteString("age")  // 3 bytes，从 m_data[34] 开始
 
 	return buf.Bytes()
 }
@@ -272,7 +282,8 @@ func createMockLargeObjectInlinedUint32() []byte {
 	size := uint32(20)
 	binary.Write(buf, binary.LittleEndian, elements)
 	binary.Write(buf, binary.LittleEndian, size)
-	var keyOff uint32 = 20
+	// header(8)+key-meta(6)+value-meta(5)=19; "k" starts at 19
+	var keyOff uint32 = 19
 	var keyLen uint16 = 1
 	binary.Write(buf, binary.LittleEndian, keyOff)
 	binary.Write(buf, binary.LittleEndian, keyLen)

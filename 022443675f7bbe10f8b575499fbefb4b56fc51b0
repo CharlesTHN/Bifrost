@@ -1,0 +1,40 @@
+Bristol/mysql/field_type_json_format.go
+  df87021b5fca1a3b 63,67-68,83-87,197-203,208,403,512,603-606,613-615
+Bristol/mysql/field_type_json_format_test.go
+  df87021b5fca1a3b 10,14,17,19-20,24,28,30,39,43,46,48-57,61-62,67-68,73,77,79,84-86,285-286
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.18",
+  "base_commit_sha": "022443675f7bbe10f8b575499fbefb4b56fc51b0",
+  "prompts": {
+    "1c2291a32da96baf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5c3da4c2-e8ba-4b4d-8d68-6acc67f78d5a",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "tianhaonan <tianhaonan@lightchain.ltd>",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 0,
+      "accepted_lines": 1,
+      "overriden_lines": 0,
+      "messages_url": "https://usegitai.com/cas/c71f190f40aeb9e8647670d13e5aa55ec6aef82b924bcbc80028dfc752bc8858"
+    },
+    "df87021b5fca1a3b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a83c8a95-3a82-40dd-8efa-3be2ff4740e0",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "tianhaonan <tianhaonan@lightchain.ltd>",
+      "messages": [],
+      "total_additions": 81,
+      "total_deletions": 61,
+      "accepted_lines": 62,
+      "overriden_lines": 0,
+      "messages_url": "https://usegitai.com/cas/f6195cc5bc5a749c59fcd52ee573d8e54b8c4375d0324ce114c5d4078280cbba"
+    }
+  }
+}

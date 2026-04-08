@@ -1,0 +1,38 @@
+plugin/clickhouse/src/transfer.go
+  c5265d328efe474d 436-439
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.18",
+  "base_commit_sha": "35f61cffd4ec2cdcd1ca52705e0d9ae0e37bd7d1",
+  "prompts": {
+    "1c2291a32da96baf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5c3da4c2-e8ba-4b4d-8d68-6acc67f78d5a",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "tianhaonan <tianhaonan@lightchain.ltd>",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 1,
+      "overriden_lines": 0,
+      "messages_url": "https://usegitai.com/cas/c71f190f40aeb9e8647670d13e5aa55ec6aef82b924bcbc80028dfc752bc8858"
+    },
+    "c5265d328efe474d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cfa8543f-e6da-4367-a928-456823582564",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tianhaonan <tianhaonan@lightchain.ltd>",
+      "messages": [],
+      "total_additions": 4,
+      "total_deletions": 0,
+      "accepted_lines": 4,
+      "overriden_lines": 0,
+      "messages_url": "https://usegitai.com/cas/a1cc8c9c1aaca99bdbf49d19200646abbc8f91e3e9c5223a1b6c5044fc3df755"
+    }
+  }
+}
